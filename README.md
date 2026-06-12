@@ -1,3 +1,11 @@
+---
+title: RAG Knowledge Agent
+emoji: 🧠
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
 # ⬡ Multimodal RAG Knowledge Base Agent
 
 A production-grade, fully documented **Multimodal Retrieval-Augmented Generation** system for startup internal knowledge bases. Processes text PDFs, embedded images, diagrams, and scanned forms — all searchable through a single conversational interface.

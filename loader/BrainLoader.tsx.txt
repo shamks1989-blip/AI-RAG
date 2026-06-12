@@ -1,0 +1,208 @@
+import brainImg from "@/assets/brain-hologram.png";
+import { useEffect, useState } from "react";
+
+const PHASES = [
+  { key: "receiving", label: "Receiving input", caption: "Signal traveling into the neural cortex", color: "var(--receive)" },
+  { key: "processing", label: "Processing thoughts", caption: "Synapses firing across cognitive pathways", color: "var(--process)" },
+  { key: "generating", label: "Generating response", caption: "Crystallizing tokens from the neural field", color: "var(--generate)" },
+] as const;
+
+const PHASE_MS = 2400;
+
+export function BrainLoader() {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setPhase((p) => (p + 1) % PHASES.length), PHASE_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  const current = PHASES[phase];
+  const isReceiving = phase === 0;
+  const isProcessing = phase === 1;
+  const isGenerating = phase === 2;
+
+  return (
+    <div
+      className="relative flex flex-col items-center gap-8 overflow-hidden rounded-3xl border border-border bg-card/40 px-6 py-10 backdrop-blur-xl transition-all duration-700"
+      style={{ boxShadow: `0 0 80px -20px ${current.color}` }}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-40 transition-colors duration-700"
+        style={{ background: `radial-gradient(circle at 50% 45%, ${current.color}30, transparent 60%)` }}
+      />
+
+      {/* Brain stage with input/output channels */}
+      <div className="relative h-64 w-full max-w-[520px]">
+        {/* SVG connection lines */}
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 520 260"
+          fill="none"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="inputGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="var(--receive)" stopOpacity="0" />
+              <stop offset="100%" stopColor="var(--receive)" stopOpacity="1" />
+            </linearGradient>
+            <linearGradient id="outputGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="var(--generate)" stopOpacity="1" />
+              <stop offset="100%" stopColor="var(--generate)" stopOpacity="0" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="b" />
+              <feMerge>
+                <feMergeNode in="b" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Input line */}
+          <g style={{ opacity: isReceiving ? 1 : 0.15, transition: "opacity 0.5s" }}>
+            <path
+              d="M 10 130 C 60 130, 110 130, 200 130"
+              stroke="url(#inputGrad)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              filter="url(#glow)"
+              strokeDasharray="6 6"
+              style={isReceiving ? { animation: "dash-flow 1s linear infinite" } : undefined}
+            />
+            {isReceiving && (
+              <circle r="5" fill="var(--receive)" filter="url(#glow)">
+                <animateMotion dur="1.2s" repeatCount="indefinite" path="M 10 130 C 60 130, 110 130, 200 130" />
+              </circle>
+            )}
+          </g>
+
+          {/* Output lines */}
+          <g style={{ opacity: isGenerating ? 1 : 0.15, transition: "opacity 0.5s" }}>
+            <path d="M 320 110 C 380 110, 440 90, 510 80" stroke="url(#outputGrad)" strokeWidth="2" strokeLinecap="round" filter="url(#glow)" strokeDasharray="6 6" style={isGenerating ? { animation: "dash-flow-rev 1s linear infinite" } : undefined} />
+            <path d="M 320 130 C 380 130, 440 130, 510 130" stroke="url(#outputGrad)" strokeWidth="2" strokeLinecap="round" filter="url(#glow)" strokeDasharray="6 6" style={isGenerating ? { animation: "dash-flow-rev 1.2s linear infinite" } : undefined} />
+            <path d="M 320 150 C 380 150, 440 170, 510 180" stroke="url(#outputGrad)" strokeWidth="2" strokeLinecap="round" filter="url(#glow)" strokeDasharray="6 6" style={isGenerating ? { animation: "dash-flow-rev 1.4s linear infinite" } : undefined} />
+            {isGenerating && (
+              <>
+                <circle r="4" fill="var(--generate)" filter="url(#glow)"><animateMotion dur="1s" repeatCount="indefinite" path="M 320 110 C 380 110, 440 90, 510 80" /></circle>
+                <circle r="4" fill="var(--generate)" filter="url(#glow)"><animateMotion dur="1.2s" begin="0.2s" repeatCount="indefinite" path="M 320 130 C 380 130, 440 130, 510 130" /></circle>
+                <circle r="4" fill="var(--generate)" filter="url(#glow)"><animateMotion dur="1.4s" begin="0.4s" repeatCount="indefinite" path="M 320 150 C 380 150, 440 170, 510 180" /></circle>
+              </>
+            )}
+          </g>
+
+          <circle cx="10" cy="130" r="4" fill="var(--receive)" opacity={isReceiving ? 1 : 0.3} filter="url(#glow)" />
+          <circle cx="510" cy="130" r="4" fill="var(--generate)" opacity={isGenerating ? 1 : 0.3} filter="url(#glow)" />
+        </svg>
+
+        {/* Brain centered */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative h-56 w-56">
+            {isProcessing && (
+              <>
+                <span aria-hidden className="absolute inset-0 rounded-full border-2" style={{ borderColor: "var(--process)", animation: "ring-pulse 1.6s ease-out infinite" }} />
+                <span aria-hidden className="absolute inset-0 rounded-full border-2" style={{ borderColor: "var(--process)", animation: "ring-pulse 1.6s ease-out 0.8s infinite" }} />
+              </>
+            )}
+
+            <div
+              className="relative h-full w-full transition-all duration-700"
+              style={{
+                animation: isProcessing
+                  ? "brain-tilt 3s ease-in-out infinite, brain-glow 1.2s ease-in-out infinite"
+                  : "brain-tilt 6s ease-in-out infinite",
+                filter: isProcessing
+                  ? `drop-shadow(0 0 40px ${current.color}) drop-shadow(0 0 80px ${current.color})`
+                  : `drop-shadow(0 0 20px ${current.color}80)`,
+              }}
+            >
+              <img
+                src={brainImg}
+                alt="AI brain"
+                width={1024}
+                height={1024}
+                className="h-full w-full object-contain transition-all duration-700"
+                style={{
+                  filter: isReceiving
+                    ? "hue-rotate(-20deg) saturate(0.9)"
+                    : isProcessing
+                      ? "hue-rotate(40deg) saturate(1.6) brightness(1.15)"
+                      : "hue-rotate(120deg) saturate(1.4) brightness(1.1)",
+                }}
+              />
+
+              <div
+                className="pointer-events-none absolute inset-0 mix-blend-color transition-opacity duration-500"
+                style={{
+                  background: current.color,
+                  opacity: isProcessing ? 0.55 : isGenerating ? 0.35 : 0.15,
+                  WebkitMaskImage: `url(${brainImg})`,
+                  maskImage: `url(${brainImg})`,
+                  WebkitMaskSize: "contain",
+                  maskSize: "contain",
+                  WebkitMaskRepeat: "no-repeat",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskPosition: "center",
+                  maskPosition: "center",
+                }}
+              />
+
+              {isProcessing &&
+                [
+                  { top: "22%", left: "30%", d: "0s" },
+                  { top: "40%", left: "55%", d: "0.2s" },
+                  { top: "55%", left: "38%", d: "0.4s" },
+                  { top: "32%", left: "62%", d: "0.6s" },
+                  { top: "60%", left: "65%", d: "0.8s" },
+                  { top: "45%", left: "45%", d: "1s" },
+                ].map((s, i) => (
+                  <span
+                    key={i}
+                    className="absolute h-1.5 w-1.5 rounded-full bg-white"
+                    style={{
+                      top: s.top,
+                      left: s.left,
+                      boxShadow: `0 0 12px 3px ${current.color}`,
+                      animation: `synapse-flicker 1.2s ease-in-out ${s.d} infinite`,
+                    }}
+                  />
+                ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase label */}
+      <div className="relative z-10 flex flex-col items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: current.color, boxShadow: `0 0 8px ${current.color}` }} />
+          <span
+            key={current.key}
+            className="text-xs font-semibold uppercase tracking-[0.4em]"
+            style={{ color: current.color, animation: "fade-up 0.4s ease-out" }}
+          >
+            {current.label}
+          </span>
+        </div>
+        <p key={current.key + "-c"} className="max-w-xs text-center text-sm text-muted-foreground" style={{ animation: "fade-up 0.4s ease-out 0.05s both" }}>
+          {current.caption}
+        </p>
+
+        <div className="mt-2 flex items-center gap-2">
+          {PHASES.map((p, i) => (
+            <span
+              key={p.key}
+              className="h-1 rounded-full transition-all duration-500"
+              style={{
+                width: i === phase ? 36 : 12,
+                background: i === phase ? p.color : "var(--muted)",
+                boxShadow: i === phase ? `0 0 10px ${p.color}` : "none",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

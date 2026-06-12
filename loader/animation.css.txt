@@ -1,0 +1,32 @@
+@keyframes brain-tilt {
+  0%, 100% { transform: perspective(900px) rotateY(-14deg) rotateX(6deg) scale(1); }
+  50% { transform: perspective(900px) rotateY(14deg) rotateX(-4deg) scale(1.04); }
+}
+
+@keyframes ring-pulse {
+  0% { transform: scale(0.75); opacity: 0.7; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes synapse-flicker {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes brain-glow {
+  0%, 100% { filter: drop-shadow(0 0 30px oklch(0.78 0.16 200 / 0.5)) drop-shadow(0 0 60px oklch(0.7 0.18 280 / 0.35)); }
+  50% { filter: drop-shadow(0 0 50px oklch(0.78 0.16 200 / 0.8)) drop-shadow(0 0 90px oklch(0.7 0.18 280 / 0.6)); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dash-flow {
+  to { stroke-dashoffset: -24; }
+}
+
+@keyframes dash-flow-rev {
+  to { stroke-dashoffset: 24; }
+}

@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Knowledge Base Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+/* ── Variables ─────────────────────────────────────────────────────────────── */
+:root {
+  --accent:       #f97316;
+  --accent-dark:  #c2410c;
+  --accent-dim:   #fed7aa;
+  --accent-glow:  rgba(249,115,22,0.12);
+  --bg:           #ffffff;
+  --bg-2:         #f8f9fa;
+  --bg-3:         #f1f3f5;
+  --border:       #e0e0e0;
+  --text:         #1a1a1a;
+  --text-dim:     #6b7280;
+  --shadow:       0 2px 8px rgba(0,0,0,0.08);
+  --radius:       12px;
+  --font:         'DM Sans', system-ui, sans-serif;
+  --mono:         'DM Mono', 'Courier New', monospace;
+}
+
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
+
+/* ── App shell ─────────────────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+.header {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.brand-title { font-size: 1.15rem; font-weight: 600; color: var(--text); }
+.brand-sub { font-size: 0.75rem; color: var(--text-dim); font-family: var(--mono); margin-top: 1px; }
+.header-badge {
+  font-size: 0.7rem; font-family: var(--mono); color: var(--accent);
+  background: var(--accent-glow); border: 1px solid var(--accent-dim);
+  border-radius: 20px; padding: 3px 10px;
+}
+
+/* ── Main layout ───────────────────────────────────────────────────────────── */
+.main {
+  flex: 1; display: flex; overflow: hidden; gap: 0;
+}
+
+/* ── Chat column ───────────────────────────────────────────────────────────── */
+.chat-col {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  padding: 16px 16px 12px 16px; min-width: 0;
+  border-right: 1px solid var(--border);
+}
+
+/* ── Chat window ───────────────────────────────────────────────────────────── */
+.chat-window {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px; background: var(--bg-2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  scroll-behavior: smooth;
+}
+.chat-window::-webkit-scrollbar { width: 4px; }
+.chat-window::-webkit-scrollbar-track { background: transparent; }
+.chat-window::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── Message bubbles ───────────────────────────────────────────────────────── */
+.msg { display: flex; flex-direction: column; max-width: 82%; }
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.assistant { align-self: flex-start; align-items: flex-start; }
+
+.bubble {
+  padding: 10px 14px; border-radius: 14px; font-size: 0.9rem;
+  line-height: 1.7; word-break: break-word;
+}
+.msg.user .bubble {
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: #fff; border-bottom-right-radius: 3px;
+  box-shadow: 0 2px 10px rgba(249,115,22,0.25);
+}
+.msg.assistant .bubble {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-bottom-left-radius: 3px;
+  box-shadow: var(--shadow);
+}
+/* Markdown inside assistant bubbles */
+.msg.assistant .bubble h1,.msg.assistant .bubble h2,.msg.assistant .bubble h3 { margin: 10px 0 4px; font-size: 1em; }
+.msg.assistant .bubble p { margin: 4px 0; }
+.msg.assistant .bubble ul,.msg.assistant .bubble ol { padding-left: 18px; margin: 4px 0; }
+.msg.assistant .bubble code { font-family: var(--mono); font-size: 0.85em; background: var(--bg-3); padding: 1px 5px; border-radius: 4px; }
+.msg.assistant .bubble pre { background: var(--bg-3); border: 1px solid var(--border); border-radius: 8px; padding: 10px; overflow-x: auto; margin: 8px 0; }
+.msg.assistant .bubble pre code { background: none; padding: 0; }
+.msg.assistant .bubble strong { color: var(--accent-dark); }
+.msg.assistant .bubble blockquote { border-left: 3px solid var(--accent-dim); padding-left: 10px; color: var(--text-dim); margin: 6px 0; }
+.msg.assistant .bubble table { border-collapse: collapse; width: 100%; font-size: 0.85em; margin: 8px 0; }
+.msg.assistant .bubble th,.msg.assistant .bubble td { border: 1px solid var(--border); padding: 5px 8px; }
+.msg.assistant .bubble th { background: var(--bg-3); font-weight: 600; }
+
+/* loader bubble — no bubble wrapper, just the rbl card */
+.msg.loader { align-self: flex-start; max-width: 100%; width: 100%; }
+
+
+/* ── Browse topics chips ───────────────────────────────────────────────────── */
+#topic-chips-area {
+  flex-shrink: 0; padding: 8px 0 2px;
+  border-top: 1px solid var(--border); margin-top: 6px;
+}
+.topics-label {
+  font-size: 0.7rem; font-family: var(--mono); color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px;
+}
+.chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.topic-chip {
+  font-size: 0.78rem; padding: 4px 12px; border-radius: 20px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  cursor: pointer; color: var(--text-dim); transition: all .15s;
+  font-family: var(--mono); white-space: nowrap;
+}
+.topic-chip:hover {
+  background: var(--accent-glow); border-color: var(--accent-dim);
+  color: var(--accent-dark);
+}
+
+/* ── Input area ────────────────────────────────────────────────────────────── */
+.input-area { flex-shrink: 0; padding-top: 10px; }
+.input-row { display: flex; gap: 8px; align-items: flex-end; }
+.input-wrap { flex: 1; position: relative; }
+#query-input {
+  width: 100%; resize: none; overflow-y: hidden;
+  font-family: var(--font); font-size: 0.9rem; line-height: 1.5;
+  padding: 10px 14px; border: 1.5px solid var(--border);
+  border-radius: var(--radius); background: var(--bg); color: var(--text);
+  outline: none; transition: border-color .2s, box-shadow .2s;
+  min-height: 44px; max-height: 130px;
+}
+#query-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+#query-input::placeholder { color: var(--text-dim); }
+
+.img-badge {
+  display: none; align-items: center; gap: 6px; margin-top: 6px;
+  font-size: 0.78rem; font-family: var(--mono); color: var(--accent-dark);
+  background: var(--accent-glow); border: 1px solid var(--accent-dim);
+  border-radius: 20px; padding: 3px 10px; width: fit-content;
+}
+.img-badge.visible { display: flex; }
+.img-badge button { background: none; border: none; cursor: pointer; color: var(--text-dim); font-size: 14px; line-height: 1; padding: 0; }
+
+.btn-group { display: flex; flex-direction: column; gap: 6px; }
+.btn {
+  padding: 10px 18px; border: none; border-radius: var(--radius);
+  font-family: var(--font); font-size: 0.875rem; font-weight: 600;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-secondary { background: var(--bg-3); color: var(--text-dim); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--border); color: var(--text); }
+
+/* ── Sidebar ───────────────────────────────────────────────────────────────── */
+.sidebar {
+  width: 280px; flex-shrink: 0; overflow-y: auto;
+  padding: 16px 12px; display: flex; flex-direction: column; gap: 12px;
+  background: var(--bg);
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.panel {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; background: var(--bg);
+}
+.panel-title {
+  font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--text-dim); margin-bottom: 10px;
+  font-family: var(--mono);
+}
+
+/* Topics list */
+.topic-item {
+  font-size: 0.8rem; padding: 5px 8px; border-radius: 8px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  color: var(--text-dim); margin-bottom: 5px; font-family: var(--mono);
+  word-break: break-all;
+}
+.no-docs { font-size: 0.8rem; color: var(--text-dim); font-family: var(--mono); }
+
+/* Upload areas */
+.upload-label {
+  display: block; padding: 8px 12px; border-radius: 8px;
+  border: 1.5px dashed var(--border); cursor: pointer;
+  font-size: 0.8rem; color: var(--text-dim); text-align: center;
+  transition: all .15s; background: var(--bg-2);
+}
+.upload-label:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+input[type="file"] { display: none; }
+#upload-status { margin-top: 8px; font-size: 0.78rem; font-family: var(--mono); color: var(--text-dim); }
+.upload-ok { color: #16a34a; }
+.upload-err { color: #dc2626; }
+
+/* Debug toggle */
+.debug-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.debug-row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+.debug-row span { font-size: 0.8rem; color: var(--text-dim); font-family: var(--mono); }
+#debug-panel {
+  margin-top: 10px; font-size: 0.78rem; font-family: var(--mono);
+  color: var(--text-dim); display: none; white-space: pre-wrap;
+  background: var(--bg-3); border-radius: 8px; padding: 8px; border: 1px solid var(--border);
+}
+#debug-panel.visible { display: block; }
+
+/* ── Footer ────────────────────────────────────────────────────────────────── */
+.footer {
+  flex-shrink: 0; border-top: 1px solid var(--border); padding: 6px 20px;
+  font-size: 0.72rem; color: var(--text-dim); font-family: var(--mono);
+  text-align: center; background: var(--bg-2);
+}
+
+/* ── Welcome message ───────────────────────────────────────────────────────── */
+.welcome {
+  text-align: center; padding: 32px 16px; color: var(--text-dim);
+}
+.welcome h2 { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.welcome p { font-size: 0.85rem; }
+
+/* ── Brain loader keyframes (unrestricted — no Gradio sandboxing!) ────────── */
+@keyframes sh0{0%,28%{opacity:1}34%,99%{opacity:0}100%{opacity:1}}
+@keyframes sh1{0%,33%{opacity:0}39%,61%{opacity:1}67%,100%{opacity:0}}
+@keyframes sh2{0%,66%{opacity:0}72%,94%{opacity:1}100%{opacity:0}}
+@keyframes rbt{0%,100%{transform:perspective(900px) rotateY(-14deg) rotateX(6deg) scale(1)}50%{transform:perspective(900px) rotateY(14deg) rotateX(-4deg) scale(1.04)}}
+@keyframes rbr{0%{transform:scale(.75);opacity:.7}100%{transform:scale(1.8);opacity:0}}
+@keyframes rbs{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.35)}}
+@keyframes rbd{to{stroke-dashoffset:-24}}
+@keyframes rbdr{to{stroke-dashoffset:24}}
+@keyframes rbfi{0%,32%{filter:drop-shadow(0 0 20px #22d4d8) hue-rotate(-20deg) saturate(0.9) brightness(1.05)}33%,66%{filter:drop-shadow(0 0 40px #a855f7) drop-shadow(0 0 80px #a855f7) hue-rotate(40deg) saturate(1.6) brightness(1.15)}67%,100%{filter:drop-shadow(0 0 20px #f472b6) hue-rotate(120deg) saturate(1.4) brightness(1.1)}}
+@keyframes rbcs{0%,32%{box-shadow:0 0 80px -20px #22d4d8}33%,66%{box-shadow:0 0 80px -20px #a855f7}67%,100%{box-shadow:0 0 80px -20px #f472b6}}
+@keyframes rbbg{0%,32%{background:radial-gradient(circle at 50% 45%,#22d4d844,transparent 62%)}33%,66%{background:radial-gradient(circle at 50% 45%,#a855f744,transparent 62%)}67%,100%{background:radial-gradient(circle at 50% 45%,#f472b644,transparent 62%)}}
+@keyframes rbil{0%,28%{opacity:1}34%,99%{opacity:.12}100%{opacity:1}}
+@keyframes rbol{0%,66%{opacity:.12}72%,94%{opacity:1}100%{opacity:.12}}
+@keyframes rbp0{0%,28%{width:36px;background:#22d4d8;box-shadow:0 0 10px #22d4d8}34%,100%{width:12px;background:rgba(255,255,255,.18);box-shadow:none}}
+@keyframes rbp1{0%,33%{width:12px;background:rgba(255,255,255,.18);box-shadow:none}39%,61%{width:36px;background:#a855f7;box-shadow:0 0 10px #a855f7}67%,100%{width:12px;background:rgba(255,255,255,.18);box-shadow:none}}
+@keyframes rbp2{0%,66%{width:12px;background:rgba(255,255,255,.18);box-shadow:none}72%,94%{width:36px;background:#f472b6;box-shadow:0 0 10px #f472b6}100%{width:12px;background:rgba(255,255,255,.18);box-shadow:none}}
+#rbl{animation:none}
+#rbl-glow{animation:rbbg 7.2s linear infinite}
+#rbl-il{animation:rbil 7.2s linear infinite}
+#rbl-id{animation:sh0 7.2s linear infinite}
+#rbl-ol{animation:rbol 7.2s linear infinite}
+#rbl-od1,#rbl-od2,#rbl-od3{animation:sh2 7.2s linear infinite}
+#rbl-bw{position:relative;width:100%;height:100%;animation:rbt 6s ease-in-out infinite}
+#rbl-bs{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen;animation:rbfi 7.2s linear infinite}
+#rbl-rw{position:absolute;inset:0;border-radius:50%;animation:sh1 7.2s linear infinite}
+#rbl-r1{position:absolute;inset:0;border-radius:50%;border:2.5px solid #a855f7;animation:rbr 1.6s ease-out infinite}
+#rbl-r2{position:absolute;inset:0;border-radius:50%;border:2.5px solid #a855f7;animation:rbr 1.6s ease-out .8s infinite}
+#rbl-sw{position:absolute;inset:0;animation:sh1 7.2s linear infinite}
+#rbl-s0{position:absolute;top:22%;left:30%;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 14px 4px #a855f7;animation:rbs 1.2s ease-in-out 0s infinite}
+#rbl-s1{position:absolute;top:40%;left:55%;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 14px 4px #a855f7;animation:rbs 1.2s ease-in-out .2s infinite}
+#rbl-s2{position:absolute;top:55%;left:38%;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 14px 4px #a855f7;animation:rbs 1.2s ease-in-out .4s infinite}
+#rbl-s3{position:absolute;top:32%;left:62%;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 14px 4px #a855f7;animation:rbs 1.2s ease-in-out .6s infinite}
+#rbl-s4{position:absolute;top:60%;left:65%;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 14px 4px #a855f7;animation:rbs 1.2s ease-in-out .8s infinite}
+#rbl-s5{position:absolute;top:45%;left:45%;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 14px 4px #a855f7;animation:rbs 1.2s ease-in-out 1s infinite}
+#rbl-row0{position:absolute;inset:0;display:flex;align-items:center;gap:8px;animation:sh0 7.2s linear infinite}
+#rbl-row1{position:absolute;inset:0;display:flex;align-items:center;gap:8px;animation:sh1 7.2s linear infinite}
+#rbl-row2{position:absolute;inset:0;display:flex;align-items:center;gap:8px;animation:sh2 7.2s linear infinite}
+#rbl-cap0{position:absolute;inset:0;margin:0;font-size:13px;color:rgba(255,255,255,.55);text-align:center;animation:sh0 7.2s linear infinite}
+#rbl-cap1{position:absolute;inset:0;margin:0;font-size:13px;color:rgba(255,255,255,.55);text-align:center;animation:sh1 7.2s linear infinite}
+#rbl-cap2{position:absolute;inset:0;margin:0;font-size:13px;color:rgba(255,255,255,.55);text-align:center;animation:sh2 7.2s linear infinite}
+#rbl-b0{display:inline-block;height:4px;border-radius:4px;animation:rbp0 7.2s linear infinite}
+#rbl-b1{display:inline-block;height:4px;border-radius:4px;animation:rbp1 7.2s linear infinite}
+#rbl-b2{display:inline-block;height:4px;border-radius:4px;animation:rbp2 7.2s linear infinite}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .chat-col{padding:10px 10px 8px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-icon">🧠</div>
+      <div>
+        <div class="brand-title">Knowledge Base Agent</div>
+        <div class="brand-sub">Multimodal RAG · LangGraph + ChromaDB + GPT-4o-mini</div>
+      </div>
+    </div>
+    <div class="header-badge">AI-Powered</div>
+  </header>
+
+  <!-- ── Main ───────────────────────────────────────────────────────────────── -->
+  <div class="main">
+
+    <!-- ── Chat column ────────────────────────────────────────────────────────  -->
+    <div class="chat-col">
+
+      <!-- Chat window -->
+      <div class="chat-window" id="chat-window">
+        <div class="welcome">
+          <h2>Ask anything about your documents</h2>
+          <p>Upload PDFs via the sidebar, then ask questions about them.</p>
+        </div>
+      </div>
+
+      <!-- Browse Topics chips -->
+      <div id="topic-chips-area" style="display:none">
+        <div class="topics-label">Browse topics:</div>
+        <div class="chips-row" id="topic-chips"></div>
+      </div>
+
+      <!-- Input -->
+      <div class="input-area">
+        <div class="input-row">
+          <div class="input-wrap">
+            <textarea id="query-input" rows="1" placeholder="Ask anything about your documents… (Shift+Enter for newline)"></textarea>
+            <div class="img-badge" id="img-badge">
+              <span>📷 Image attached</span>
+              <button id="remove-img-btn" title="Remove image">✕</button>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="send-btn">Send →</button>
+            <button class="btn btn-secondary" id="clear-btn">Clear</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+    <div class="sidebar">
+
+      <!-- Indexed documents -->
+      <div class="panel">
+        <div class="panel-title">📚 Indexed Documents</div>
+        <div id="topics-panel"><span class="no-docs">Loading…</span></div>
+      </div>
+
+      <!-- Image upload -->
+      <div class="panel">
+        <div class="panel-title">📷 Attach Image (Optional)</div>
+        <input type="file" id="image-input" accept="image/*">
+        <label for="image-input" class="upload-label">Choose image for vision query</label>
+      </div>
+
+      <!-- PDF upload -->
+      <div class="panel">
+        <div class="panel-title">📄 Upload PDF</div>
+        <input type="file" id="pdf-input" accept=".pdf" multiple>
+        <label for="pdf-input" class="upload-label">Choose PDF to ingest</label>
+        <div id="upload-status"></div>
+      </div>
+
+      <!-- Debug -->
+      <div class="panel">
+        <label class="debug-row">
+          <input type="checkbox" id="debug-toggle">
+          <span>Show retrieval details</span>
+        </label>
+        <div id="debug-panel"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+  <div class="footer">
+    Multimodal RAG Agent · Built with LangGraph + ChromaDB + GPT-4o-mini
+  </div>
+
+</div>
+
+<!-- marked.js for markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<script>
+// ── Brain loader HTML ─────────────────────────────────────────────────────────
+// CSS keyframes are in <head><style> so they apply immediately when this HTML
+// is injected into the DOM — no Gradio sandboxing to fight.
+const BRAIN_LOADER_HTML = `
+<div id="rbl" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:8px;background:transparent;padding:4px;overflow:hidden;max-width:96px;font-family:system-ui,sans-serif">
+<div id="rbl-glow" style="display:none"></div>
+<div style="position:relative;width:100%;max-width:96px;height:44px">
+  <svg viewBox="0 0 520 220" fill="none" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+    <defs>
+      <linearGradient id="rbl-ig" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#22d4d8" stop-opacity="0"/><stop offset="100%" stop-color="#22d4d8" stop-opacity="1"/></linearGradient>
+      <linearGradient id="rbl-og" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f472b6" stop-opacity="1"/><stop offset="100%" stop-color="#f472b6" stop-opacity="0"/></linearGradient>
+      <filter id="rbl-gf"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <g id="rbl-il">
+      <path d="M10 110 C60 110,110 110,195 110" stroke="url(#rbl-ig)" stroke-width="2.5" stroke-linecap="round" filter="url(#rbl-gf)" stroke-dasharray="6 6" style="animation:rbd 1s linear infinite"/>
+      <circle id="rbl-id" r="6" fill="#22d4d8" filter="url(#rbl-gf)"><animateMotion dur="1.2s" repeatCount="indefinite" path="M10 110 C60 110,110 110,195 110"/></circle>
+    </g>
+    <circle cx="10" cy="110" r="5" fill="#22d4d8" opacity=".3" filter="url(#rbl-gf)"/>
+    <g id="rbl-ol">
+      <path d="M325 90 C390 90,450 68,510 58" stroke="url(#rbl-og)" stroke-width="2" stroke-linecap="round" filter="url(#rbl-gf)" stroke-dasharray="6 6" style="animation:rbdr 1s linear infinite"/>
+      <path d="M325 110 C390 110,450 110,510 110" stroke="url(#rbl-og)" stroke-width="2" stroke-linecap="round" filter="url(#rbl-gf)" stroke-dasharray="6 6" style="animation:rbdr 1.2s linear infinite"/>
+      <path d="M325 130 C390 130,450 152,510 162" stroke="url(#rbl-og)" stroke-width="2" stroke-linecap="round" filter="url(#rbl-gf)" stroke-dasharray="6 6" style="animation:rbdr 1.4s linear infinite"/>
+      <circle id="rbl-od1" r="5" fill="#f472b6" filter="url(#rbl-gf)"><animateMotion dur="1s" repeatCount="indefinite" path="M325 90 C390 90,450 68,510 58"/></circle>
+      <circle id="rbl-od2" r="5" fill="#f472b6" filter="url(#rbl-gf)"><animateMotion dur="1.2s" begin=".2s" repeatCount="indefinite" path="M325 110 C390 110,450 110,510 110"/></circle>
+      <circle id="rbl-od3" r="5" fill="#f472b6" filter="url(#rbl-gf)"><animateMotion dur="1.4s" begin=".4s" repeatCount="indefinite" path="M325 130 C390 130,450 152,510 162"/></circle>
+    </g>
+    <circle cx="510" cy="110" r="5" fill="#f472b6" opacity=".3" filter="url(#rbl-gf)"/>
+  </svg>
+  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+    <div style="position:relative;width:40px;height:40px">
+      <div id="rbl-rw"><div id="rbl-r1"></div><div id="rbl-r2"></div></div>
+      <div id="rbl-bw">
+        <img id="rbl-bs" src="/loader/brain-hologram-R3Auy5m4.png" alt="AI brain"/>
+        <div id="rbl-sw"><span id="rbl-s0"></span><span id="rbl-s1"></span><span id="rbl-s2"></span><span id="rbl-s3"></span><span id="rbl-s4"></span><span id="rbl-s5"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div style="display:none">
+  <div style="position:relative;height:20px;min-width:240px">
+    <div id="rbl-row0"><span style="width:7px;height:7px;border-radius:50%;background:#22d4d8;box-shadow:0 0 8px #22d4d8;flex-shrink:0;display:inline-block"></span><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.35em;color:#22d4d8;white-space:nowrap">Receiving input</span></div>
+    <div id="rbl-row1"><span style="width:7px;height:7px;border-radius:50%;background:#a855f7;box-shadow:0 0 8px #a855f7;flex-shrink:0;display:inline-block"></span><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.35em;color:#a855f7;white-space:nowrap">Processing thoughts</span></div>
+    <div id="rbl-row2"><span style="width:7px;height:7px;border-radius:50%;background:#f472b6;box-shadow:0 0 8px #f472b6;flex-shrink:0;display:inline-block"></span><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.35em;color:#f472b6;white-space:nowrap">Generating response</span></div>
+  </div>
+  <div style="position:relative;height:40px;max-width:320px;width:100%">
+    <p id="rbl-cap0">Signal traveling into the neural cortex</p>
+    <p id="rbl-cap1">Synapses firing across cognitive pathways</p>
+    <p id="rbl-cap2">Crystallizing tokens from the neural field</p>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+    <span id="rbl-b0"></span><span id="rbl-b1"></span><span id="rbl-b2"></span>
+  </div>
+</div>
+</div>`;
+
+// ── App state ─────────────────────────────────────────────────────────────────
+let history = [];
+let attachedImageB64 = null;
+let isLoading = false;
+
+// ── Elements ──────────────────────────────────────────────────────────────────
+const chatWindow   = document.getElementById('chat-window');
+const queryInput   = document.getElementById('query-input');
+const sendBtn      = document.getElementById('send-btn');
+const clearBtn     = document.getElementById('clear-btn');
+const imgBadge     = document.getElementById('img-badge');
+const removeImgBtn = document.getElementById('remove-img-btn');
+const imageInput   = document.getElementById('image-input');
+const pdfInput     = document.getElementById('pdf-input');
+const debugToggle  = document.getElementById('debug-toggle');
+const debugPanel   = document.getElementById('debug-panel');
+const uploadStatus = document.getElementById('upload-status');
+
+// ── marked.js config ──────────────────────────────────────────────────────────
+marked.setOptions({ breaks: true, gfm: true });
+
+// ── Message helpers ───────────────────────────────────────────────────────────
+function addMessage(role, content) {
+  // Remove welcome message on first real message
+  const welcome = chatWindow.querySelector('.welcome');
+  if (welcome) welcome.remove();
+
+  const wrap = document.createElement('div');
+  wrap.className = `msg ${role}`;
+
+  if (role === 'loader') {
+    wrap.innerHTML = BRAIN_LOADER_HTML;
+    wrap.id = 'loader-msg';
+  } else {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (role === 'assistant') {
+      bubble.innerHTML = marked.parse(content);
+    } else {
+      bubble.textContent = content;
+    }
+    wrap.appendChild(bubble);
+  }
+
+  chatWindow.appendChild(wrap);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+  return wrap;
+}
+
+function removeLoader() {
+  const el = document.getElementById('loader-msg');
+  if (el) el.remove();
+}
+
+// ── Send message ──────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const text = queryInput.value.trim();
+  if (!text || isLoading) return;
+
+  isLoading = true;
+  sendBtn.disabled = true;
+  queryInput.value = '';
+  autoResize();
+
+  // 1. Add user bubble immediately
+  addMessage('user', text);
+  const priorHistory = [...history];
+  history.push({ role: 'user', content: text });
+
+  // 2. Add brain loader bubble immediately — stays until fetch() resolves
+  addMessage('loader', '');
+
+  // Clear image badge
+  const imgToSend = attachedImageB64;
+  clearImage();
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: text,
+        history: priorHistory,
+        image: imgToSend || null,
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(`Server ${resp.status}: ${err}`);
+    }
+
+    const data = await resp.json();
+
+    // 3. Hold loader for 2 s so the animation is visible before answer appears
+    await new Promise(r => setTimeout(r, 2000));
+
+    removeLoader();
+    addMessage('assistant', data.answer);
+    history.push({ role: 'assistant', content: data.answer });
+
+    // Update debug panel
+    if (debugToggle.checked) {
+      renderDebug(data);
+    }
+
+  } catch (e) {
+    removeLoader();
+    addMessage('assistant', `⚠️ **Error:** ${e.message}`);
+  } finally {
+    isLoading = false;
+    sendBtn.disabled = false;
+    queryInput.focus();
+  }
+}
+
+// ── Debug panel ───────────────────────────────────────────────────────────────
+function renderDebug(data) {
+  if (!data) { debugPanel.textContent = ''; return; }
+  const sources = (data.sources || []).map(s =>
+    `  • ${s.source}${s.page ? ` p.${s.page}` : ''} [${s.type || 'text'}] score=${(s.score||0).toFixed(3)}`
+  ).join('\n');
+  debugPanel.textContent =
+    `Query:    ${data.query || ''}\n` +
+    `Intent:   ${data.intent || ''}\n` +
+    `Sources (${(data.sources||[]).length}):\n${sources}`;
+}
+
+debugToggle.addEventListener('change', () => {
+  debugPanel.classList.toggle('visible', debugToggle.checked);
+});
+
+// ── Clear chat ────────────────────────────────────────────────────────────────
+clearBtn.addEventListener('click', () => {
+  history = [];
+  chatWindow.innerHTML = '<div class="welcome"><h2>Ask anything about your documents</h2><p>Upload PDFs via the sidebar, then ask questions about them.</p></div>';
+  debugPanel.textContent = '';
+  clearImage();
+});
+
+// ── Auto-resize textarea ──────────────────────────────────────────────────────
+function autoResize() {
+  queryInput.style.height = 'auto';
+  queryInput.style.height = Math.min(queryInput.scrollHeight, 130) + 'px';
+}
+queryInput.addEventListener('input', autoResize);
+
+// ── Keyboard send ─────────────────────────────────────────────────────────────
+queryInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+sendBtn.addEventListener('click', sendMessage);
+
+// ── Image attachment ──────────────────────────────────────────────────────────
+function clearImage() {
+  attachedImageB64 = null;
+  imgBadge.classList.remove('visible');
+  imageInput.value = '';
+}
+
+imageInput.addEventListener('change', () => {
+  const file = imageInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    // Strip data: prefix → send raw base64
+    attachedImageB64 = e.target.result.split(',')[1];
+    imgBadge.classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+});
+
+removeImgBtn.addEventListener('click', clearImage);
+
+// ── PDF upload ────────────────────────────────────────────────────────────────
+pdfInput.addEventListener('change', async () => {
+  const files = Array.from(pdfInput.files);
+  if (!files.length) return;
+
+  uploadStatus.innerHTML = '<span>Uploading…</span>';
+
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const resp = await fetch('/api/upload', { method: 'POST', body: fd });
+      if (!resp.ok) throw new Error(await resp.text());
+      const data = await resp.json();
+      const r = data.result || {};
+      const chunks = r.chunks || 0;
+      uploadStatus.innerHTML += `<div class="upload-ok">✓ ${file.name} — ${chunks} chunks indexed</div>`;
+      renderTopics(data.documents || []);
+    } catch (e) {
+      uploadStatus.innerHTML += `<div class="upload-err">✗ ${file.name}: ${e.message}</div>`;
+    }
+  }
+  pdfInput.value = '';
+});
+
+// ── Topics panel ──────────────────────────────────────────────────────────────
+function renderTopics(docs) {
+  const panel      = document.getElementById('topics-panel');
+  const chipsArea  = document.getElementById('topic-chips-area');
+  const chipsRow   = document.getElementById('topic-chips');
+
+  if (!docs || !docs.length) {
+    panel.innerHTML = '<span class="no-docs">No documents indexed yet.</span>';
+    chipsArea.style.display = 'none';
+    chipsRow.innerHTML = '';
+    return;
+  }
+
+  panel.innerHTML = docs.map(d =>
+    `<div class="topic-item">${d.title || d.source || d}</div>`
+  ).join('');
+
+  chipsRow.innerHTML = docs.map(d => {
+    const title = (d.title || d.source || d).replace(/'/g, "\\'");
+    return `<span class="topic-chip" onclick="setQuery('Tell me about ${title}')">${d.title || d.source || d}</span>`;
+  }).join('');
+
+  chipsArea.style.display = 'block';
+}
+
+function setQuery(text) {
+  queryInput.value = text;
+  autoResize();
+  queryInput.focus();
+}
+
+// ── Init: load documents ──────────────────────────────────────────────────────
+(async () => {
+  try {
+    const resp = await fetch('/api/documents');
+    const data = await resp.json();
+    renderTopics(data.documents || []);
+  } catch (e) {
+    document.getElementById('topics-panel').innerHTML =
+      '<span class="no-docs">Could not load documents.</span>';
+  }
+})();
+</script>
+</body>
+</html>

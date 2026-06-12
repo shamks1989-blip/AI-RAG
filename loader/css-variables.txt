@@ -1,0 +1,5 @@
+:root {
+  --receive: oklch(0.78 0.16 200);
+  --process: oklch(0.7 0.22 290);
+  --generate: oklch(0.78 0.18 340);
+}

@@ -1,0 +1,33 @@
+# =============================================================================
+# requirements.txt — Multimodal RAG Knowledge Base Agent
+# =============================================================================
+# Install with: pip install -r requirements.txt
+#
+# Tested on Python 3.10+
+# =============================================================================
+
+# ── PDF parsing & image extraction ───────────────────────────────────────────
+PyMuPDF>=1.24.0              # fitz — PDF text + image extraction
+
+# ── LLM & Vision ─────────────────────────────────────────────────────────────
+openai>=1.30.0               # GPT-4o-mini text generation + vision
+
+# ── Embeddings ────────────────────────────────────────────────────────────────
+sentence-transformers>=2.7.0 # all-MiniLM-L6-v2 embedding model
+
+# ── Vector database ────────────────────────────────────────────────────────────
+chromadb>=0.5.0              # local persistent vector store
+
+# ── Agent orchestration ───────────────────────────────────────────────────────
+langgraph>=0.1.0             # stateful agent graph
+langchain-core>=0.2.0        # shared base types
+langchain-text-splitters>=0.2.0  # RecursiveCharacterTextSplitter
+
+# ── UI ────────────────────────────────────────────────────────────────────────
+gradio>=4.36.0               # web chat interface (messages format support)
+
+# ── Image handling (for Gradio image upload) ──────────────────────────────────
+Pillow>=10.0.0               # PIL image processing
+
+# ── Environment variable loading ──────────────────────────────────────────────
+python-dotenv>=1.0.0         # load .env files into os.environ
